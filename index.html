@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CISOChat - Tutor Espacial de Historia</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e66, #1a2a47);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-title h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        .settings-icon {
+            font-size: 1.8rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 30%;
+            transition: background-color 0.3s;
+            user-select: none;
+        }
+        .settings-icon:hover {
+            background-color: rgba(255,255,255,0.15);
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 10px 15px 15px;
+            overflow: hidden;
+        }
+        .chat-area {
+            flex: 1;
+            background: white;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.05);
+            overflow-y: auto;
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 300px;
+            max-height: 60vh;
+            scroll-behavior: smooth;
+        }
+        .chat-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-area::-webkit-scrollbar-thumb {
+            background: #b0c4de;
+            border-radius: 8px;
+        }
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+        .message.user {
+            align-self: flex-end;
+        }
+        .message.bot {
+            align-self: flex-start;
+        }
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .message.user .bubble {
+            background: #2c3e66;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.bot .bubble {
+            background: #f0f4fa;
+            color: #1a2332;
+            border-bottom-left-radius: 4px;
+        }
+        .message .timestamp {
+            font-size: 0.65rem;
+            color: #7a8a9e;
+            margin-top: 4px;
+            padding: 0 6px;
+        }
+        .message.user .timestamp {
+            text-align: right;
+        }
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            padding: 12px 18px;
+            background: #f0f4fa;
+            border-radius: 20px;
+            border-bottom-left-radius: 4px;
+            color: #4a5a72;
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+        .typing-indicator.active {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: #6a7a92;
+            border-radius: 50%;
+            animation: blink 1.4s infinite both;
+        }
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pdf-download-btn {
+            margin-top: 10px;
+            background: #e67e22;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            align-self: flex-start;
+        }
+        .pdf-download-btn:hover {
+            background: #d35400;
+        }
+        .menu-container {
+            background: white;
+            border-radius: 0 0 16px 16px;
+            padding: 14px 12px 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            flex-shrink: 0;
+            border-top: 1px solid #e0e8ef;
+        }
+        .menu-btn {
+            background: #2c3e66;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(44,62,102,0.15);
+        }
+        .menu-btn:hover {
+            background: #1f3152;
+            transform: translateY(-2px);
+        }
+        .menu-btn.orange {
+            background: #e67e22;
+        }
+        .menu-btn.orange:hover {
+            background: #d35400;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            padding: 12px 0 4px;
+            flex-shrink: 0;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #dce3ec;
+            border-radius: 30px;
+            font-size: 1rem;
+            outline: none;
+            transition: border 0.2s;
+            background: white;
+        }
+        .input-area input:focus {
+            border-color: #2c3e66;
+        }
+        .input-area button {
+            background: #2c3e66;
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .input-area button:hover {
+            background: #1f3152;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: white;
+            border-radius: 24px;
+            padding: 30px 28px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-box h2 {
+            margin-bottom: 18px;
+            color: #1a2332;
+            font-size: 1.5rem;
+        }
+        .modal-box label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: #2c3e66;
+        }
+        .modal-box input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dce3ec;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            margin-bottom: 18px;
+        }
+        .modal-box input[type="text"]:focus {
+            border-color: #2c3e66;
+            outline: none;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .modal-actions button {
+            padding: 10px 22px;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+        .modal-actions .btn-primary {
+            background: #2c3e66;
+            color: white;
+        }
+        .modal-actions .btn-primary:hover {
+            background: #1f3152;
+        }
+        .modal-actions .btn-secondary {
+            background: #e0e8ef;
+            color: #1a2332;
+        }
+        .modal-actions .btn-secondary:hover {
+            background: #c8d2dd;
+        }
+        .quiz-question {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            color: #1a2332;
+        }
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 16px 0 20px;
+        }
+        .quiz-options button {
+            padding: 12px 16px;
+            border: 2px solid #dce3ec;
+            border-radius: 14px;
+            background: white;
+            text-align: left;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .quiz-options button:hover:not(:disabled) {
+            background: #f0f4fa;
+            border-color: #2c3e66;
+        }
+        .quiz-options button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .quiz-options button.correct {
+            background: #27ae60;
+            color: white;
+            border-color: #27ae60;
+        }
+        .quiz-options button.incorrect {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+        .quiz-feedback {
+            margin: 12px 0;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 500;
+            background: #f8f9fa;
+            border-left: 5px solid #2c3e66;
+        }
+        .quiz-result {
+            text-align: center;
+            padding: 12px 0;
+        }
+        .quiz-result .score {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2c3e66;
+        }
+        .quiz-result .best-score {
+            font-size: 1rem;
+            color: #5a6a82;
+            margin-top: 4px;
+        }
+        @media (max-width: 700px) {
+            .header-title h1 { font-size: 1.1rem; }
+            .menu-container { gap: 6px; padding: 10px 8px; }
+            .menu-btn { font-size: 0.75rem; padding: 6px 12px; }
+            .chat-area { padding: 14px 12px; max-height: 50vh; min-height: 200px; }
+            .message { max-width: 92%; }
+            .bubble { font-size: 0.9rem; padding: 10px 14px; }
+            .modal-box { padding: 20px; }
+            .input-area input { font-size: 0.95rem; padding: 10px 14px; }
+            .input-area button { padding: 0 16px; font-size: 0.9rem; }
+        }
+        @media (max-width: 480px) {
+            .header { padding: 12px 14px; }
+            .header-title h1 { font-size: 0.95rem; }
+            .settings-icon { font-size: 1.4rem; padding: 4px 8px; }
+            .menu-btn { font-size: 0.7rem; padding: 5px 10px; }
+            .modal-box h2 { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-title">
+            <span>🌌</span>
+            <h1>CISOChat · Tutor Espacial</h1>
+        </div>
+        <div class="settings-icon" id="settingsIcon" title="Doble clic para configurar Worker">⚙️</div>
+    </header>
+    <div class="main-container">
+        <div class="chat-area" id="chatArea"></div>
+        <div class="typing-indicator" id="typingIndicator">
+            <span>Escribiendo</span>
+            <span class="typing-dots">
+                <span></span><span></span><span></span>
+            </span>
+        </div>
+        <div class="menu-container" id="menuContainer">
+            <button class="menu-btn" data-topic="eventos históricos">📜 Eventos</button>
+            <button class="menu-btn" data-topic="cascos de guerra">🪖 Cascos</button>
+            <button class="menu-btn" data-topic="revoluciones">⚔️ Revoluciones</button>
+            <button class="menu-btn" data-topic="personajes">👤 Personajes</button>
+            <button class="menu-btn" data-topic="imperios">🏛️ Imperios</button>
+            <button class="menu-btn" data-topic="andinoamerica">🗿 Andinoamérica</button>
+            <button class="menu-btn" data-topic="mesoamerica">🌽 Mesoamérica</button>
+            <button class="menu-btn orange" id="summaryBtn">📝 Resumen</button>
+            <button class="menu-btn orange" id="quizBtn">🎮 Juego</button>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Escribe tu pregunta sobre historia..." autocomplete="off">
+            <button id="sendBtn">Enviar</button>
+        </div>
+    </div>
+    <div class="modal-overlay" id="configModal">
+        <div class="modal-box">
+            <h2>⚙️ Configurar Worker</h2>
+            <label for="workerUrlInput">URL del Cloudflare Worker:</label>
+            <input type="text" id="workerUrlInput" placeholder="https://tu-worker.workers.dev">
+            <div class="modal-actions">
+                <button class="btn-secondary" id="configCancelBtn">Cancelar</button>
+                <button class="btn-primary" id="configSaveBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="quizModal">
+        <div class="modal-box" id="quizBox">
+            <h2>🎮 Quiz Histórico</h2>
+            <div id="quizContent"></div>
+        </div>
+    </div>
+    <script>
+        (function() {
+            'use strict';
+            const DEFAULT_WORKER_URL = 'https://tu-worker.workers.dev';
+            const MAX_HISTORY = 10;
+            const chatArea = document.getElementById('chatArea');
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const typingIndicator = document.getElementById('typingIndicator');
+            const settingsIcon = document.getElementById('settingsIcon');
+            const configModal = document.getElementById('configModal');
+            const workerUrlInput = document.getElementById('workerUrlInput');
+            const configSaveBtn = document.getElementById('configSaveBtn');
+            const configCancelBtn = document.getElementById('configCancelBtn');
+            const summaryBtn = document.getElementById('summaryBtn');
+            const quizBtn = document.getElementById('quizBtn');
+            const quizModal = document.getElementById('quizModal');
+            const quizContent = document.getElementById('quizContent');
+            let messages = [];
+            let isWaiting = false;
+            let currentSummaryTopic = null;
+
+            function getWorkerUrl() {
+                return localStorage.getItem('workerUrl') || DEFAULT_WORKER_URL;
+            }
+
+            function setWorkerUrl(url) {
+                localStorage.setItem('workerUrl', url);
+            }
+
+            function addMessage(role, content, extra = {}) {
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.innerHTML = content.replace(/\n/g, '<br>');
+                messageDiv.appendChild(bubble);
+                const timeSpan = document.createElement('div');
+                timeSpan.className = 'timestamp';
+                timeSpan.textContent = timestamp;
+                messageDiv.appendChild(timeSpan);
+                if (role === 'bot' && extra.showPdf && currentSummaryTopic) {
+                    const pdfBtn = document.createElement('button');
+                    pdfBtn.className = 'pdf-download-btn';
+                    pdfBtn.innerHTML = '📥 Descargar PDF';
+                    pdfBtn.addEventListener('click', function() {
+                        generatePDF(content, currentSummaryTopic);
+                    });
+                    messageDiv.appendChild(pdfBtn);
+                    currentSummaryTopic = null;
+                }
+                chatArea.appendChild(messageDiv);
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+
+            function showTyping() {
+                typingIndicator.classList.add('active');
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+
+            function hideTyping() {
+                typingIndicator.classList.remove('active');
+            }
+
+            function setWaiting(state) {
+                isWaiting = state;
+                sendBtn.disabled = state;
+                userInput.disabled = state;
+                if (state) showTyping();
+                else hideTyping();
+            }
+
+            function showWelcome() {
+                const welcomeMsg = '🌌 ¡Hola, futuro historiador! Soy CISOChat, tu tutor espacial. Puedes preguntarme sobre guerras, historia o usar el menú.';
+                addMessage('bot', welcomeMsg);
+                messages.push({ role: 'assistant', content: welcomeMsg });
+            }
+
+            async function sendToWorker(userMessage) {
+                if (isWaiting) return;
+                if (!userMessage.trim()) return;
+                addMessage('user', userMessage);
+                messages.push({ role: 'user', content: userMessage });
+                const summaryMatch = userMessage.match(/^resumen\s+de\s+(.+)/i);
+                if (summaryMatch) {
+                    const topic = summaryMatch[1].trim();
+                    currentSummaryTopic = topic;
+                    const prompt = `Genera un resumen extenso sobre "${topic}" de al menos 400 palabras, adecuado para estudiantes de 12 a 18 años. Incluye título, introducción, puntos clave y conclusión. Usa párrafos claros. No uses lenguaje técnico complejo.`;
+                    await fetchBotResponse(prompt, true);
+                    return;
+                }
+                await fetchBotResponse(userMessage, false);
+            }
+
+            async function fetchBotResponse(userContent, isSummary) {
+                const workerUrl = getWorkerUrl();
+                if (!workerUrl || workerUrl === DEFAULT_WORKER_URL) {
+                    addMessage('bot', '⚠️ La URL del Worker no está configurada. Haz doble clic en el ícono ⚙️ para configurarla.');
+                    return;
+                }
+                setWaiting(true);
+                try {
+                    const history = messages.slice(-MAX_HISTORY * 2);
+                    const payload = { messages: history };
+                    const response = await fetch(workerUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    const botReply = data.reply || 'Lo siento, no pude procesar tu solicitud.';
+                    messages.push({ role: 'assistant', content: botReply });
+                    addMessage('bot', botReply, { showPdf: isSummary });
+                } catch (error) {
+                    console.error('Error Worker:', error);
+                    addMessage('bot', '🔌 Error de conexión con el tutor IA. Verifica que el Worker esté activo y la URL correcta.');
+                } finally {
+                    setWaiting(false);
+                }
+            }
+
+            function generatePDF(text, topic) {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('La librería jsPDF no está disponible. Verifica tu conexión a internet.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 20;
+                const maxWidth = pageWidth - margin * 2;
+                let y = margin;
+                const title = `Resumen: ${topic}`;
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                const titleLines = doc.splitTextToSize(title, maxWidth);
+                doc.text(titleLines, margin, y);
+                y += titleLines.length * 8 + 6;
+                doc.setDrawColor(44, 62, 102);
+                doc.line(margin, y, pageWidth - margin, y);
+                y += 6;
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+                const lines = doc.splitTextToSize(text, maxWidth);
+                for (let i = 0; i < lines.length; i++) {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                    doc.text(lines[i], margin, y);
+                    y += 6;
+                }
+                const fileName = `resumen_${topic.replace(/\s+/g, '_')}.pdf`;
+                doc.save(fileName);
+            }
+
+            document.querySelectorAll('.menu-btn[data-topic]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const topic = this.dataset.topic;
+                    const prompt = `Háblame sobre ${topic} en la historia.`;
+                    userInput.value = prompt;
+                    sendToWorker(prompt);
+                });
+            });
+
+            summaryBtn.addEventListener('click', function() {
+                const topic = prompt('¿Sobre qué tema deseas un resumen extenso?');
+                if (topic && topic.trim()) {
+                    const promptText = `resumen de ${topic.trim()}`;
+                    userInput.value = promptText;
+                    sendToWorker(promptText);
+                }
+            });
+
+            quizBtn.addEventListener('click', function() {
+                startQuiz();
+            });
+
+            function handleSend() {
+                const text = userInput.value.trim();
+                if (text) {
+                    sendToWorker(text);
+                    userInput.value = '';
+                }
+            }
+
+            sendBtn.addEventListener('click', handleSend);
+            userInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSend();
+                }
+            });
+
+            settingsIcon.addEventListener('dblclick', function() {
+                const current = getWorkerUrl();
+                workerUrlInput.value = current;
+                configModal.classList.add('active');
+            });
+
+            configCancelBtn.addEventListener('click', function() {
+                configModal.classList.remove('active');
+            });
+
+            configSaveBtn.addEventListener('click', function() {
+                const url = workerUrlInput.value.trim();
+                if (url) {
+                    setWorkerUrl(url);
+                    configModal.classList.remove('active');
+                    addMessage('bot', '✅ URL del Worker actualizada correctamente.');
+                } else {
+                    alert('Por favor ingresa una URL válida.');
+                }
+            });
+
+            configModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+
+            const questions = [
+                { question: '¿Quién fue el primer emperador del Imperio Romano?', options: ['Julio César', 'Augusto', 'Nerón', 'Constantino'], answer: 1 },
+                { question: '¿En qué año llegó Cristóbal Colón a América?', options: ['1492', '1500', '1485', '1510'], answer: 0 },
+                { question: '¿Cuál fue la principal civilización de Mesoamérica?', options: ['Inca', 'Maya', 'Azteca', 'Olmeca'], answer: 2 },
+                { question: '¿Qué imperio fue el más extenso de la historia?', options: ['Imperio Romano', 'Imperio Mongol', 'Imperio Británico', 'Imperio Español'], answer: 2 },
+                { question: '¿Quién pintó la Capilla Sixtina?', options: ['Leonardo da Vinci', 'Miguel Ángel', 'Rafael', 'Donatello'], answer: 1 },
+                { question: '¿En qué año comenzó la Revolución Francesa?', options: ['1789', '1799', '1776', '1804'], answer: 0 },
+                { question: '¿Qué civilización construyó Machu Picchu?', options: ['Azteca', 'Maya', 'Inca', 'Chibcha'], answer: 2 },
+                { question: '¿Quién fue el líder de la independencia de México?', options: ['Miguel Hidalgo', 'José de San Martín', 'Simón Bolívar', 'Bernardo O\'Higgins'], answer: 0 },
+                { question: '¿Qué guerra duró 100 años?', options: ['Guerra de los Cien Años', 'Guerra de los Treinta Años', 'Guerra de las Rosas', 'Guerra de Sucesión'], answer: 0 },
+                { question: '¿Quién escribió "El Principito"?', options: ['Antoine de Saint-Exupéry', 'Julio Verne', 'J.R.R. Tolkien', 'C.S. Lewis'], answer: 0 },
+                { question: '¿Cuál fue la primera civilización en usar la escritura?', options: ['Egipcia', 'Sumeria', 'China', 'India'], answer: 1 },
+                { question: '¿Qué evento inició la Primera Guerra Mundial?', options: ['Asesinato de Francisco Fernando', 'Invasión de Polonia', 'Batalla de Somme', 'Tratado de Versalles'], answer: 0 },
+                { question: '¿Quién fue el primer presidente de Estados Unidos?', options: ['Thomas Jefferson', 'George Washington', 'Abraham Lincoln', 'John Adams'], answer: 1 },
+                { question: '¿Qué imperio dominó la región andina antes de los Incas?', options: ['Chimú', 'Tiwanaku', 'Moche', 'Nazca'], answer: 1 },
+                { question: '¿Cuál es la ciudad más antigua de América?', options: ['Caral', 'Teotihuacán', 'Chichén Itzá', 'Palenque'], answer: 0 }
+            ];
+
+            let currentQuiz = {
+                questions: [],
+                currentIndex: 0,
+                score: 0,
+                answered: false,
+                bestScore: parseInt(localStorage.getItem('quizBestScore')) || 0
+            };
+
+            function startQuiz() {
+                const shuffled = [...questions].sort(() => Math.random() - 0.5);
+                const selected = shuffled.slice(0, 5);
+                currentQuiz.questions = selected;
+                currentQuiz.currentIndex = 0;
+                currentQuiz.score = 0;
+                currentQuiz.answered = false;
+                quizModal.classList.add('active');
+                renderQuizQuestion();
+            }
+
+            function renderQuizQuestion() {
+                const qIndex = currentQuiz.currentIndex;
+                const qData = currentQuiz.questions[qIndex];
+                if (!qData) {
+                    showQuizResult();
+                    return;
+                }
+                const total = currentQuiz.questions.length;
+                const html = `
+                    <div class="quiz-question">Pregunta ${qIndex+1}/${total}: ${qData.question}</div>
+                    <div class="quiz-options" id="quizOptions">
+                        ${qData.options.map((opt, idx) => `
+                            <button data-idx="${idx}" ${currentQuiz.answered ? 'disabled' : ''}>${opt}</button>
+                        `).join('')}
+                    </div>
+                    <div id="quizFeedback" class="quiz-feedback" style="display:none;"></div>
+                    <div class="modal-actions">
+                        <button class="btn-secondary" id="quizCloseBtn">Cerrar</button>
+                        ${currentQuiz.answered ? `<button class="btn-primary" id="quizNextBtn">Siguiente</button>` : ''}
+                    </div>
+                `;
+                quizContent.innerHTML = html;
+                if (!currentQuiz.answered) {
+                    document.querySelectorAll('#quizOptions button').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const selectedIdx = parseInt(this.dataset.idx);
+                            handleQuizAnswer(selectedIdx);
+                        });
+                    });
+                }
+                document.getElementById('quizCloseBtn').addEventListener('click', function() {
+                    quizModal.classList.remove('active');
+                });
+                const nextBtn = document.getElementById('quizNextBtn');
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', function() {
+                        currentQuiz.currentIndex++;
+                        currentQuiz.answered = false;
+                        renderQuizQuestion();
+                    });
+                }
+            }
+
+            function handleQuizAnswer(selectedIdx) {
+                if (currentQuiz.answered) return;
+                currentQuiz.answered = true;
+                const qData = currentQuiz.questions[currentQuiz.currentIndex];
+                const isCorrect = selectedIdx === qData.answer;
+                if (isCorrect) currentQuiz.score++;
+                const feedbackDiv = document.getElementById('quizFeedback');
+                feedbackDiv.style.display = 'block';
+                feedbackDiv.innerHTML = isCorrect ? '✅ ¡Correcto!' : `❌ Incorrecto. La respuesta correcta era: ${qData.options[qData.answer]}`;
+                const optionBtns = document.querySelectorAll('#quizOptions button');
+                optionBtns.forEach((btn, idx) => {
+                    btn.disabled = true;
+                    if (idx === qData.answer) btn.classList.add('correct');
+                    if (idx === selectedIdx && !isCorrect) btn.classList.add('incorrect');
+                });
+                const actions = document.querySelector('.modal-actions');
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn-primary';
+                nextBtn.id = 'quizNextBtn';
+                nextBtn.textContent = 'Siguiente';
+                const oldNext = document.getElementById('quizNextBtn');
+                if (oldNext) oldNext.remove();
+                actions.appendChild(nextBtn);
+                nextBtn.addEventListener('click', function() {
+                    currentQuiz.currentIndex++;
+                    currentQuiz.answered = false;
+                    renderQuizQuestion();
+                });
+            }
+
+            function showQuizResult() {
+                const total = currentQuiz.questions.length;
+                const score = currentQuiz.score;
+                const best = currentQuiz.bestScore;
+                let msg = '';
+                if (score > best) {
+                    localStorage.setItem('quizBestScore', score);
+                    msg = '🎉 ¡Nuevo récord!';
+                } else {
+                    msg = `Tu mejor puntuación: ${best}/5`;
+                }
+                const html = `
+                    <div class="quiz-result">
+                        <div class="score">${score}/${total}</div>
+                        <div style="font-size:1.2rem; margin:8px 0;">${msg}</div>
+                        <div class="best-score">🏆 Mejor puntuación histórica: ${Math.max(score, best)}/5</div>
+                    </div>
+                    <div class="modal-actions" style="justify-content:center; margin-top:16px;">
+                        <button class="btn-primary" id="quizNewGameBtn">🔄 Nueva partida</button>
+                        <button class="btn-secondary" id="quizCloseResultBtn">Cerrar</button>
+                    </div>
+                `;
+                quizContent.innerHTML = html;
+                document.getElementById('quizNewGameBtn').addEventListener('click', startQuiz);
+                document.getElementById('quizCloseResultBtn').addEventListener('click', function() {
+                    quizModal.classList.remove('active');
+                });
+            }
+
+            // Inicializar
+            showWelcome();
+        })();
+    </script>
+</body>
+</html>
